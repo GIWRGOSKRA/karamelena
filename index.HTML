@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Υπολογιστής Υδατανθράκων & AI Σύμβουλος</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary-green': '#3B82F6',
+                        'secondary-blue': '#1D4ED8',
+                        'gemini-blue': '#4285F4',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for aesthetics */
+        #results-container::-webkit-scrollbar,
+        #reviewMealContent::-webkit-scrollbar,
+        #mealIdeaContent::-webkit-scrollbar {
+            width: 6px;
+        }
+        #results-container::-webkit-scrollbar-thumb,
+        #reviewMealContent::-webkit-scrollbar-thumb,
+        #mealIdeaContent::-webkit-scrollbar-thumb {
+            background-color: #9CA3AF;
+            border-radius: 3px;
+        }
+        #results-container::-webkit-scrollbar-track,
+        #reviewMealContent::-webkit-scrollbar-track,
+        #mealIdeaContent::-webkit-scrollbar-track {
+            background-color: #F3F4F6;
+        }
+        /* Ensure responsive layout for button groups */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        @media (min-width: 640px) {
+            .btn-group {
+                flex-direction: row;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4 font-sans">
+
+    <div class="w-full max-w-lg bg-white shadow-2xl rounded-xl p-6 md:p-10 border border-gray-100">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 flex items-center justify-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-primary-green" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
+                </svg>
+                <span>Υπολογιστής & Σύμβουλος Υδατανθράκων</span>
+            </h1>
+            <p class="text-gray-500 mt-2">Βρείτε την περιεκτικότητα σε υδατάνθρακες ανά 100γρ και λάβετε συμβουλές διαβητικής διατροφής μέσω AI.</p>
+        </header>
+
+        <!-- Input and Search Area (for Nutrition Data) -->
+        <div class="space-y-4">
+            <div class="relative">
+                <input type="text" id="foodInput" placeholder="π.χ. Μήλο, Φακές, Κοτόπουλο στήθος"
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition duration-150 text-gray-700 placeholder-gray-400">
+            </div>
+            <button id="searchButton" onclick="searchNutrition()"
+                    class="w-full bg-primary-green hover:bg-secondary-blue text-white font-semibold py-3 rounded-lg shadow-md transition duration-200 flex items-center justify-center disabled:opacity-50">
+                <svg id="searchIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <svg id="loadingSpinner" class="animate-spin h-5 w-5 mr-2 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Αναζήτηση Διατροφικών Στοιχείων
+            </button>
+        </div>
+
+        <!-- Results Display Area -->
+        <div id="results-container" class="mt-8 pt-6 border-t border-gray-200 max-h-96 overflow-y-auto">
+            <div id="resultsContent" class="text-gray-700">
+                <p class="text-center text-gray-500 italic">Πληκτρολογήστε ένα τρόφιμο παραπάνω για να δείτε τη διατροφική ανάλυση και να το προσθέσετε στο γεύμα.</p>
+            </div>
+        </div>
+        
+        <!-- Rule of Three Calculator Section -->
+        <div id="ruleOfThreeTracker" class="mt-8 pt-6 border-t border-gray-200">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354l.395-.395a6 6 0 00-8.485 0 6 6 0 000 8.485l.395.395M18.605 15.605l.395.395a6 6 0 000-8.485 6 6 0 00-8.485 0l-.395.395m0 0l-1.414 1.414m2.828 0l2.828 2.828M15 11l-3 3M11 15l-3 3" />
+                </svg>
+                <span>Μέθοδος των Τριών (Ακρίβεια Δόσης)</span>
+            </h2>
+            <div class="space-y-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="ruleA" class="block text-sm font-medium text-gray-700">Α: Γραμμάρια Αναφοράς (π.χ. 100)</label>
+                        <input type="number" id="ruleA" value="100" min="1" oninput="calculateRuleOfThree()"
+                               class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-sm">
+                    </div>
+                    <div>
+                        <label for="ruleB" class="block text-sm font-medium text-gray-700">Β: Περιεκτικότητα (γρ) για Α</label>
+                        <input type="number" id="ruleB" value="" placeholder="π.χ. 15 (Υδατάνθρακες)" oninput="calculateRuleOfThree()"
+                               class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label for="ruleC" class="block text-sm font-medium text-gray-700">Γ: Ποσότητα Γεύματος (γρ)</label>
+                    <input type="number" id="ruleC" value="" placeholder="π.χ. 250" oninput="calculateRuleOfThree()"
+                           class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-sm">
+                </div>
+                <div class="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg font-bold text-lg flex justify-between">
+                    <span>Αποτέλεσμα (X):</span>
+                    <span id="ruleX" class="text-red-700">0,000 γρ</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Βρείτε την ακριβή περιεκτικότητα σε θρεπτικό συστατικό για τη μερίδα σας.</p>
+            </div>
+        </div>
+
+        <!-- Meal Tracker Section -->
+        <div id="mealTracker" class="mt-8 pt-6 border-t border-gray-200">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-primary-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span>Το Καταγεγραμμένο Γεύμα μου</span>
+            </h2>
+            <div id="mealList" class="space-y-2 mb-4">
+                <!-- Meal items will be rendered here -->
+            </div>
+            <div id="mealTotal" class="p-3 bg-blue-100 border border-blue-300 rounded-lg font-bold text-lg flex justify-between">
+                <span>Σύνολο Υδατανθράκων:</span>
+                <span id="totalCarbs" class="text-blue-700">0.0 γρ</span>
+            </div>
+
+            <!-- NEW LLM Meal Review Feature -->
+            <button id="reviewMealButton" onclick="reviewMeal()"
+                    class="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg shadow-md transition duration-200 flex items-center justify-center disabled:opacity-50">
+                <span id="reviewMealIcon">✨</span>
+                <svg id="reviewMealLoadingSpinner" class="animate-spin h-5 w-5 ml-2 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                &nbsp;Ανάλυση & Προτάσεις Γεύματος (AI)
+            </button>
+            <div id="reviewMealContent" class="mt-4 p-4 bg-purple-100 border border-purple-300 rounded-lg max-h-80 overflow-y-auto hidden">
+                <p class="text-purple-700 italic">Η ανάλυση του γεύματος θα εμφανιστεί εδώ.</p>
+            </div>
+        </div>
+
+        <!-- Meal Idea Section -->
+        <div class="mt-8 pt-6 border-t border-gray-200">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 flex items-center">
+                <svg class="h-6 w-6 mr-2 text-gemini-blue" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM9 17l-3-3 3-3 3 3-3 3zM15 7l-3 3 3 3 3-3-3-3z" fill="currentColor"/>
+                </svg>
+                <span class="text-gemini-blue font-bold">Δημιουργία Συνταγών (AI)</span>
+            </h2>
+             <button id="mealIdeaButton" onclick="generateMealIdea()"
+                    class="w-full bg-gemini-blue hover:bg-blue-600 text-white font-semibold py-3 rounded-lg shadow-md transition duration-200 flex items-center justify-center disabled:opacity-50">
+                <span id="mealIdeaIcon">✨</span>
+                &nbsp;Δημιουργία Γεύματος Χαμηλών Υδατανθράκων
+            </button>
+            <div id="mealIdeaContent" class="mt-4 p-4 bg-gray-100 border border-gray-200 rounded-lg max-h-80 overflow-y-auto hidden">
+                <p class="text-gray-600 italic">Η πρόταση γεύματος θα εμφανιστεί εδώ αφού πατήσετε το κουμπί.</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- Firebase/Authentication Boilerplate (required for environment) ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase configuration and App ID are provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app, auth, db;
+
+        async function initializeFirebase() {
+            try {
+                if (Object.keys(firebaseConfig).length > 0) {
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    setLogLevel('Debug'); // Enable Firestore logging
+
+                    // Authenticate the user
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log("Signed in with custom token.");
+                    } else {
+                        await signInAnonymously(auth);
+                        console.log("Signed in anonymously.");
+                    }
+                } else {
+                    console.error("Firebase config is missing.");
+                }
+            } catch (error) {
+                console.error("Error initializing Firebase or signing in:", error);
+            }
+        }
+
+        initializeFirebase();
+        // --- End Firebase Boilerplate ---
+
+        const apiKey = ""; // API key is provided by the environment
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+        const MAX_RETRIES = 5;
+
+        // UI elements for Nutrition Search
+        const foodInput = document.getElementById('foodInput');
+        const searchButton = document.getElementById('searchButton');
+        const resultsContent = document.getElementById('resultsContent');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const searchIcon = document.getElementById('searchIcon');
+
+        // UI elements for Meal Idea (Existing LLM Feature)
+        const mealIdeaButton = document.getElementById('mealIdeaButton');
+        const mealIdeaContent = document.getElementById('mealIdeaContent');
+        const mealIdeaLoadingSpinner = document.getElementById('mealIdeaLoadingSpinner');
+        const mealIdeaIcon = document.getElementById('mealIdeaIcon');
+        
+        // UI elements for NEW Meal Review Feature
+        const reviewMealButton = document.getElementById('reviewMealButton');
+        const reviewMealContent = document.getElementById('reviewMealContent');
+        const reviewMealLoadingSpinner = document.getElementById('reviewMealLoadingSpinner');
+        const reviewMealIcon = document.getElementById('reviewMealIcon');
+
+        // --- Meal Tracker State ---
+        let mealItems = [];
+
+        /**
+         * Calculates the total carbohydrates from all items in the meal tracker.
+         * @returns {number} Total carbs in grams.
+         */
+        function calculateTotalCarbs() {
+            return mealItems.reduce((total, item) => total + item.carbs, 0);
+        }
+
+        /**
+         * Renders the current list of meal items and the total carbohydrate count.
+         */
+        function renderMealTracker() {
+            const mealList = document.getElementById('mealList');
+            const totalCarbsSpan = document.getElementById('totalCarbs');
+            const totalCarbs = calculateTotalCarbs();
+            
+            // Update total carbs display
+            totalCarbsSpan.textContent = `${totalCarbs.toFixed(1).replace('.', ',')} γρ`;
+
+            if (mealItems.length === 0) {
+                mealList.innerHTML = `<p class="text-sm text-gray-500" id="emptyMealMessage">Δεν έχουν προστεθεί τρόφιμα ακόμα.</p>`;
+                reviewMealButton.disabled = true; // Disable review if meal is empty
+                reviewMealContent.classList.add('hidden'); // Hide previous review
+                return;
+            }
+
+            // Enable review if meal is not empty
+            reviewMealButton.disabled = false;
+            
+            // Render list of items
+            mealList.innerHTML = mealItems.map((item, index) => `
+                <div class="flex justify-between items-center p-2 bg-white rounded-lg border border-gray-100 shadow-sm">
+                    <span class="text-sm text-gray-800 font-medium">${item.name} (${item.quantity.toFixed(0)} γρ)</span>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-primary-green font-bold">${item.carbs.toFixed(1).replace('.', ',')} γρ</span>
+                        <button onclick="removeItem(${index})" class="text-red-500 hover:text-red-700 transition-colors" title="Αφαίρεση">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        /**
+         * Adds a calculated food item to the meal tracker.
+         * @param {string} foodName - The name of the food.
+         * @param {number} carbsPer100g - Carbohydrate content per 100g.
+         */
+        window.addToMeal = function(foodName, carbsPer100g) {
+            const quantityInput = document.getElementById('quantityInput');
+            const quantity = parseFloat(quantityInput.value.replace(',', '.')); // Handle Greek comma decimal
+
+            if (isNaN(quantity) || quantity <= 0) {
+                // Use a simple non-modal message instead of alert()
+                resultsContent.insertAdjacentHTML('afterbegin', '<div id="tempMessage" class="text-red-500 p-2 bg-red-100 rounded-lg mb-2">Παρακαλώ εισάγετε έγκυρη ποσότητα σε γραμμάρια (π.χ. 150).</div>');
+                setTimeout(() => document.getElementById('tempMessage')?.remove(), 3000);
+                return;
+            }
+
+            const totalCarbsForServing = (carbsPer100g / 100) * quantity;
+
+            mealItems.push({
+                name: foodName,
+                quantity: quantity,
+                carbsPer100g: carbsPer100g,
+                carbs: totalCarbsForServing
+            });
+
+            renderMealTracker();
+            
+            // Provide feedback
+            resultsContent.insertAdjacentHTML('afterbegin', `<div id="successMessage" class="text-green-600 p-2 bg-green-100 rounded-lg mb-2">Προστέθηκε ${foodName} (${totalCarbsForServing.toFixed(1).replace('.', ',')} γρ υδατ.) στο γεύμα!</div>`);
+            setTimeout(() => document.getElementById('successMessage')?.remove(), 3000);
+            
+            // Hide review content when meal changes
+            reviewMealContent.classList.add('hidden');
+        };
+
+        /**
+         * Removes an item from the meal tracker array by index.
+         * @param {number} index - Index of the item to remove.
+         */
+        window.removeItem = function(index) {
+            mealItems.splice(index, 1);
+            renderMealTracker();
+        };
+
+        // Initialize the meal tracker display on load
+        document.addEventListener('DOMContentLoaded', () => {
+             renderMealTracker();
+             calculateRuleOfThree(); // Initialize Rule of Three on load
+        });
+        // --- END Meal Tracker State ---
+
+        /**
+         * Calculates the unknown value X using the Rule of Three: X = (C * B) / A.
+         * Used for calculating nutrient content for a custom serving size.
+         */
+        window.calculateRuleOfThree = function() {
+            // Replace comma with dot for correct float parsing (Greek decimal convention)
+            const A = parseFloat(document.getElementById('ruleA').value.replace(',', '.'));
+            const B = parseFloat(document.getElementById('ruleB').value.replace(',', '.'));
+            const C = parseFloat(document.getElementById('ruleC').value.replace(',', '.'));
+            const resultElement = document.getElementById('ruleX');
+
+            if (isNaN(A) || isNaN(B) || isNaN(C) || A <= 0) {
+                resultElement.textContent = '0,000 γρ';
+                return;
+            }
+
+            const X = (C * B) / A;
+            // Use comma for Greek display and 3 decimal places for precision (crucial for carb counting)
+            resultElement.textContent = `${X.toFixed(3).replace('.', ',')} γρ`;
+        };
+
+
+        /**
+         * Sets the loading state of the UI elements.
+         * @param {boolean} isLoading - True to show loading state, false otherwise.
+         * @param {string} type - 'nutrition', 'mealIdea', or 'reviewMeal'.
+         */
+        function setLoadingState(isLoading, type = 'nutrition') {
+            const elements = {
+                'nutrition': { button: searchButton, spinner: loadingSpinner, icon: searchIcon, content: resultsContent },
+                'mealIdea': { button: mealIdeaButton, spinner: mealIdeaLoadingSpinner, icon: mealIdeaIcon, content: mealIdeaContent },
+                'reviewMeal': { button: reviewMealButton, spinner: reviewMealLoadingSpinner, icon: reviewMealIcon, content: reviewMealContent }
+            };
+
+            const { button, spinner, icon, content } = elements[type];
+            if (!button || !content) return; // Guard against missing elements
+
+            button.disabled = isLoading;
+            spinner.classList.toggle('hidden', !isLoading);
+            icon.classList.toggle('hidden', isLoading);
+            
+            if (isLoading) {
+                content.classList.remove('hidden'); // Ensure content area is visible
+                let loadingText = '';
+                let textColor = '';
+                if (type === 'nutrition') {
+                    loadingText = 'Αναζήτηση (Προτεραιότητα USDA)...';
+                    textColor = 'text-primary-green';
+                } else if (type === 'mealIdea') {
+                    loadingText = 'Δημιουργία πρότασης γεύματος...';
+                    textColor = 'text-gemini-blue';
+                } else if (type === 'reviewMeal') {
+                    loadingText = 'Ανάλυση γεύματος και παροχή συμβουλών...';
+                    textColor = 'text-purple-700';
+                }
+
+                content.innerHTML = `
+                    <div class="flex items-center justify-center p-4">
+                        <svg class="animate-spin h-5 w-5 mr-3 ${textColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="${textColor} font-medium">${loadingText}</span>
+                    </div>
+                `;
+                // If it's nutrition search, also clear meal idea content
+                if (type === 'nutrition') {
+                    mealIdeaContent.classList.add('hidden');
+                    mealIdeaContent.innerHTML = `<p class="text-gray-600 italic">Η πρόταση γεύματος θα εμφανιστεί εδώ αφού πατήσετε το κουμπί.</p>`;
+                }
+            } else {
+                 // Ensure visibility is correct after loading is done
+                 content.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Makes a robust API call with exponential backoff.
+         * @param {Object} payload - The request body for the Gemini API.
+         * @returns {Promise<Object>} The parsed JSON response.
+         */
+        async function fetchWithBackoff(payload) {
+            for (let i = 0; i < MAX_RETRIES; i++) {
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log(`Gemini Response (Attempt ${i + 1}):`, result); // Log successful response
+                        return result;
+                    } else if (response.status === 429 && i < MAX_RETRIES - 1) {
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue; // Retry
+                    } else {
+                        console.error(`API call failed with status: ${response.status}`, await response.text());
+                        throw new Error(`API call failed with status: ${response.status}`);
+                    }
+                } catch (error) {
+                    if (i === MAX_RETRIES - 1) {
+                        console.error("Final API attempt failed after retries:", error);
+                        throw error; // Throw if final attempt fails
+                    }
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    // Do not log retry as an error
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+
+        window.searchNutrition = async function() {
+            const foodName = foodInput.value.trim();
+            if (!foodName) {
+                resultsContent.innerHTML = `<p class="text-red-500 p-4 bg-red-100 rounded-lg">Παρακαλώ εισάγετε ένα όνομα τροφίμου για αναζήτηση.</p>`;
+                return;
+            }
+
+            setLoadingState(true, 'nutrition');
+
+            const systemPrompt = "You are a helpful nutrition assistant. Prioritize finding the carbohydrate content per 100 grams for the requested food from USDA FoodData Central. If USDA data is unavailable or unclear, you must search the broader web for reliable nutritional information. Provide a clear, concise summary and highlight the exact carbohydrate value in grams. IMPORTANT: Respond in GREEK (ΕΛΛΗΝΙΚΑ).";
+            
+            const userQuery = `What is the total carbohydrate content of 100 grams of fresh, raw or standard version of "${foodName}"? Prioritize USDA FoodData Central data. If no USDA data is found, use the best available source. Provide the exact value and the source(s).`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                tools: [{ "google_search": {} }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+
+            try {
+                const result = await fetchWithBackoff(payload);
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    const text = candidate.content.parts[0].text;
+                    let sources = [];
+
+                    // Extract grounding sources
+                    const groundingMetadata = candidate.groundingMetadata;
+                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                        sources = groundingMetadata.groundingAttributions
+                            .map(attribution => ({
+                                uri: attribution.web?.uri,
+                                title: attribution.web?.title,
+                            }))
+                            .filter(source => source.uri && source.title);
+                    }
+
+                    // --- ROBUST CARB VALUE EXTRACTION (FIXED) ---
+                    // Regex to find any number (with optional comma or dot decimal) followed by a unit (g or grams)
+                    const carbMatch = text.match(/(\d+[,.]?\d*)\s*(γραμμάρια|γρ|grams|g)/i);
+                    let carbValue = 0; // Default to 0
+
+                    if (carbMatch) {
+                        // The number part is usually the first captured group (index 1)
+                        const rawValue = carbMatch[1].replace(',', '.'); // Normalize comma to dot for parsing
+                        carbValue = parseFloat(rawValue) || 0;
+                    }
+                    // --- END ROBUST CARB VALUE EXTRACTION ---
+                    
+                    // Enhanced formatting of the main text: highlight the calculated carb value
+                    let formattedText = text;
+                    if (carbValue > 0) {
+                        // Create a pattern for the number, allowing both dot and comma in the text
+                        const valuePattern = carbValue.toFixed(1).replace('.', '[.,]');
+                        const regex = new RegExp(`(\\b${valuePattern}[0-9]*(\\s*|\\s*-\\s*)(\\s*γραμμάρια|\\s*γρ|\\s*grams|\\s*g)?)`, 'gi');
+                        
+                        // Use a safer regex to highlight only the first instance of a strong number mention
+                        formattedText = formattedText.replace(/(\d+[,.]?\d*)(\s*γραμμάρια|\s*γρ|\s*grams|\s*g)/i, (match) => 
+                            `<span class="text-primary-green font-extrabold text-xl">${match}</span>`
+                        );
+                    }
+
+
+                    let sourcesHtml = '';
+                    if (sources.length > 0) {
+                        sourcesHtml = `
+                            <p class="mt-4 text-sm font-semibold text-gray-600">Αναφορές Πηγών:</p>
+                            <ul class="list-disc list-inside text-xs text-gray-500 mt-2 space-y-1 pl-4">
+                                ${sources.map((source, index) =>
+                                    `<li key=${index} class="truncate">
+                                        <a href="${source.uri}" target="_blank" class="text-blue-500 hover:text-blue-700 hover:underline transition-colors">${source.title}</a>
+                                    </li>`
+                                ).join('')}
+                            </ul>
+                        `;
+                    }
+
+                    // Final display structure including the quantity input and ADD TO MEAL button
+                    resultsContent.innerHTML = `
+                        <h2 class="text-xl font-semibold mb-3 text-gray-800">Διατροφικά Στοιχεία ανά 100γρ ${foodName}</h2>
+                        <div class="p-4 bg-green-50 border border-green-200 rounded-lg leading-relaxed">
+                            <p class="text-base">${formattedText}</p>
+
+                            <!-- ADD TO MEAL CONTROLS -->
+                            <div class="mt-4 pt-4 border-t border-green-300 flex items-center space-x-3 flex-wrap">
+                                <label for="quantityInput" class="text-sm font-semibold text-gray-700 whitespace-nowrap">Ποσότητα (γρ):</label>
+                                <input type="number" id="quantityInput" value="100" min="1" 
+                                    class="w-20 px-3 py-1 border border-gray-300 rounded-lg text-sm text-center focus:ring-green-500 focus:border-green-500">
+                                
+                                <button onclick="addToMeal('${foodName.replace(/'/g, "\\'")}', ${carbValue})"
+                                        class="mt-2 sm:mt-0 flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm py-2 rounded-lg shadow-md transition duration-200">
+                                    Προσθήκη στο Γεύμα
+                                </button>
+                            </div>
+                            <!-- END ADD TO MEAL CONTROLS -->
+                        </div>
+                        ${sourcesHtml}
+                    `;
+
+                } else {
+                    resultsContent.innerHTML = `<p class="text-yellow-700 p-4 bg-yellow-100 rounded-lg">Δεν ήταν δυνατή η εύρεση συγκεκριμένων πληροφοριών υδατανθράκων για το "${foodName}" από τις διαθέσιμες πηγές ή η απάντηση ήταν κενή. Ελέγξτε την κονσόλα για λεπτομέρειες.</p>`;
+                }
+            } catch (error) {
+                console.error("Operation failed:", error);
+                resultsContent.innerHTML = `<p class="text-red-500 p-4 bg-red-100 rounded-lg">Παρουσιάστηκε σφάλμα κατά τη σύνδεση με την υπηρεσία διατροφικών στοιχείων. Παρακαλώ ελέγξτε το δίκτυό σας ή δοκιμάστε ξανά αργότερα.</p>`;
+            } finally {
+                setLoadingState(false, 'nutrition');
+            }
+        }
+        
+        // --- NEW LLM Feature: Meal Review and Adjustment Suggestions ---
+        window.reviewMeal = async function() {
+            if (mealItems.length === 0) {
+                reviewMealContent.innerHTML = `<p class="text-red-500 p-2 bg-red-100 rounded-lg">Παρακαλώ προσθέστε τουλάχιστον ένα τρόφιμο στο γεύμα.</p>`;
+                reviewMealContent.classList.remove('hidden');
+                return;
+            }
+
+            setLoadingState(true, 'reviewMeal');
+
+            // 1. Prepare meal data string
+            const mealListString = mealItems.map(item => 
+                `- ${item.name} (${item.quantity.toFixed(0)}γρ): ${item.carbs.toFixed(1)}γρ υδατάνθρακες`
+            ).join('\n');
+            const totalCarbs = calculateTotalCarbs().toFixed(1);
+
+            // 2. Define Prompts (in English for AI comprehension)
+            const systemPrompt = "You are a specialized nutritionist and diabetes educator providing meal analysis. Your tone is professional, supportive, and focused on diabetes management, especially carb counting. Your primary goal is to review a list of meal components and their total carbohydrate count, and then offer practical, healthy, low-carb suggestions for modification or portion control (e.g., replace pasta with zucchini noodles, reduce potato serving). IMPORTANT: The final response must be concise (max 4-5 bullet points/paragraphs) and written entirely in GREEK (ΕΛΛΗΝΙΚΑ).";
+            
+            const userQuery = `Please review the following meal and provide suggestions for reduction/modification to keep the total carbohydrate count low (ideally under 45g for a main meal, but tailor to the meal size), suitable for diabetes management. The current meal items are:\n${mealListString}\nTotal estimated carbohydrates: ${totalCarbs} grams.`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                // Use Google Search grounding to ensure recipes/ideas are realistic and scientifically sound
+                tools: [{ "google_search": {} }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+
+            try {
+                const result = await fetchWithBackoff(payload);
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    let text = candidate.content.parts[0].text;
+                    
+                    // Simple formatting: Convert Markdown list/bold to HTML for clean display
+                    text = text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-purple-800 font-bold">$1</strong>');
+                    const htmlContent = text.split('\n').map(line => {
+                        if (line.trim().startsWith('* ') || line.trim().startsWith('- ')) {
+                            return `<li class="text-gray-700 ml-5 list-disc">${line.substring(2).trim()}</li>`;
+                        }
+                        if (line.trim().length > 0) {
+                            return `<p class="text-gray-700 mb-1">${line}</p>`;
+                        }
+                        return '';
+                    }).join('');
+
+                    reviewMealContent.innerHTML = `<div class="space-y-3">${htmlContent}</div>`;
+                } else {
+                    reviewMealContent.innerHTML = `<p class="text-yellow-700 p-2 bg-yellow-100 rounded-lg">Συγγνώμη, δεν μπόρεσα να δημιουργήσω ανάλυση γεύματος.</p>`;
+                }
+            } catch (error) {
+                console.error("Meal review generation failed:", error);
+                reviewMealContent.innerHTML = `<p class="text-red-500 p-2 bg-red-100 rounded-lg">Παρουσιάστηκε σφάλμα κατά τη δημιουργία της ανάλυσης γεύματος.</p>`;
+            } finally {
+                setLoadingState(false, 'reviewMeal');
+            }
+        }
+        // --- END LLM Feature: Meal Review ---
+
+
+        window.generateMealIdea = async function() {
+            const foodName = foodInput.value.trim();
+            if (!foodName) {
+                mealIdeaContent.innerHTML = `<p class="text-red-500 p-2 bg-red-100 rounded-lg">Παρακαλώ εισάγετε πρώτα ένα όνομα τροφίμου στο πεδίο αναζήτησης.</p>`;
+                mealIdeaContent.classList.remove('hidden');
+                return;
+            }
+
+            setLoadingState(true, 'mealIdea');
+
+            // --- PROMPTS FOR MEAL IDEA (English for AI comprehension) ---
+            const systemPrompt = "You are a creative, low-carb recipe assistant. Your task is to generate a simple, low-carbohydrate meal idea that either incorporates the requested food or is a healthy low-carb pairing for it. Provide the recipe name, a brief description, and 3-4 key ingredients. Format the response clearly using bold for the title and bullet points for ingredients. IMPORTANT: Respond in GREEK (ΕΛΛΗΝΙΚΑ).";
+            const userQuery = `Generate a simple low-carb meal idea using or complementing the food: "${foodName}".`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                // Use Google Search grounding to ensure recipes/ideas are realistic
+                tools: [{ "google_search": {} }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+
+            try {
+                const result = await fetchWithBackoff(payload);
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    let text = candidate.content.parts[0].text;
+                    
+                    // Simple formatting: Convert Markdown list/bold to HTML for clean display
+                    text = text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-lg text-gemini-blue font-bold">$1</strong>');
+                    const htmlContent = text.split('\n').map(line => {
+                        if (line.trim().startsWith('* ') || line.trim().startsWith('- ')) {
+                            return `<li class="text-gray-700 ml-5 list-disc">${line.substring(2).trim()}</li>`;
+                        }
+                        if (line.trim().length > 0) {
+                            return `<p class="text-gray-700 mb-1">${line}</p>`;
+                        }
+                        return '';
+                    }).join('');
+
+
+                    mealIdeaContent.innerHTML = `<div class="space-y-2">${htmlContent}</div>`;
+                } else {
+                    mealIdeaContent.innerHTML = `<p class="text-yellow-700 p-2 bg-yellow-100 rounded-lg">Συγγνώμη, δεν μπόρεσα να δημιουργήσω μια πρόταση γεύματος για αυτό το τρόφιμο.</p>`;
+                }
+            } catch (error) {
+                console.error("Meal idea generation failed:", error);
+                mealIdeaContent.innerHTML = `<p class="text-red-500 p-2 bg-red-100 rounded-lg">Παρουσιάστηκε σφάλμα κατά τη δημιουργία της πρότασης γεύματος.</p>`;
+            } finally {
+                setLoadingState(false, 'mealIdea');
+            }
+        }
+    </script>
+</body>
+</html>
